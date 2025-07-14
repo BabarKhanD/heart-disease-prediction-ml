@@ -1,0 +1,132 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+data = pd.read_csv('heart.csv')
+print(data.shape)
+print(data.head())
+print(data.describe())
+print(data.info())
+
+plt.figure(figsize=(15, 15))
+sns.pairplot(data)
+plt.show()
+
+plt.figure(figsize=(15, 15))
+sns.heatmap(data.corr(), annot=True, cmap='coolwarm')
+plt.show()
+
+plt.figure(figsize=(10, 7))
+sns.histplot(data['age'], kde=True)
+plt.title('Distribution of Age')
+plt.show()
+
+gender_counts = data['sex'].value_counts()
+labels = ['Male', 'Female']
+size = [gender_counts[1], gender_counts[0]]
+colors = ['lightblue', 'lightgreen']
+explode = [0, 0.01]
+my_circle = plt.Circle((0, 0), 0.7, color='white')
+plt.figure(figsize=(9, 9))
+plt.pie(size, labels=labels, colors=colors, explode=explode, autopct='%.2f%%', shadow=True)
+plt.gca().add_artist(my_circle)
+plt.title('Distribution of Gender')
+plt.legend()
+plt.show()
+
+sns.countplot(x='target', data=data, palette='pastel')
+plt.title('Target Distribution')
+plt.grid()
+plt.show()
+
+sns.boxplot(x='target', y='trestbps', data=data)
+plt.title('Resting BP vs Target')
+plt.show()
+
+sns.violinplot(x='target', y='chol', data=data)
+plt.title('Cholesterol vs Target')
+plt.show()
+
+dat = pd.crosstab(data['target'], data['restecg'])
+dat.div(dat.sum(1).astype(float), axis=0).plot(kind='bar', stacked=True, figsize=(10, 7))
+plt.title('ECG vs Target')
+plt.show()
+
+sns.lmplot(x='target', y='thalach', data=data)
+plt.title('Max Heart Rate vs Target')
+plt.show()
+
+sns.regplot(x='target', y='exang', data=data)
+plt.title('Exercise Induced Angina vs Target')
+plt.show()
+
+sns.boxplot(x='target', y='slope', data=data)
+plt.title('ST Slope vs Target')
+plt.show()
+
+column_map = {
+    'cp': 'chest_pain_type',
+    'trestbps': 'resting_blood_pressure',
+    'chol': 'cholesterol',
+    'fbs': 'fasting_blood_sugar',
+    'restecg': 'rest_ecg',
+    'thalach': 'max_heart_rate_achieved',
+    'exang': 'exercise_induced_angina',
+    'oldpeak': 'st_depression',
+    'slope': 'st_slope',
+    'ca': 'num_major_vessels',
+    'thal': 'thalassemia'
+}
+data.rename(columns=column_map, inplace=True)
+
+replace_map = {
+    'sex': {0: 'female', 1: 'male'},
+    'chest_pain_type': {1: 'typical angina', 2: 'atypical angina', 3: 'non-anginal pain', 4: 'asymptomatic'},
+    'fasting_blood_sugar': {0: 'lower than 120mg/ml', 1: 'greater than 120mg/ml'},
+    'rest_ecg': {0: 'normal', 1: 'ST-T wave abnormality', 2: 'left ventricular hypertrophy'},
+    'exercise_induced_angina': {0: 'no', 1: 'yes'},
+    'st_slope': {1: 'upsloping', 2: 'flat', 3: 'downsloping'},
+    'thalassemia': {3: 'normal', 6: 'fixed defect', 7: 'reversable defect'}
+}
+data.replace(replace_map, inplace=True)
+
+to_category = ['sex', 'chest_pain_type', 'fasting_blood_sugar', 'rest_ecg', 'exercise_induced_angina', 'st_slope', 'thalassemia']
+data[to_category] = data[to_category].astype('category')
+
+y = data['target']
+x = data.drop(columns='target')
+x = pd.get_dummies(x, drop_first=True)
+
+from sklearn.model_selection import train_test_split
+x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=0)
+
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report, confusion_matrix
+
+model = RandomForestClassifier(n_estimators=50, max_depth=5)
+model.fit(x_train, y_train)
+y_pred = model.predict(x_test)
+y_pred_proba = model.predict_proba(x_test)[:, 1]
+
+print("Training Accuracy:", model.score(x_train, y_train))
+print("Testing Accuracy:", model.score(x_test, y_test))
+
+cm = confusion_matrix(y_test, y_pred)
+sns.heatmap(cm, annot=True, fmt='d')
+plt.title('Confusion Matrix')
+plt.show()
+
+print(classification_report(y_test, y_pred))
+
+from sklearn.metrics import roc_curve, auc
+fpr, tpr, thresholds = roc_curve(y_test, y_pred_proba)
+print("AUC Score:", auc(fpr, tpr))
+
+plt.plot(fpr, tpr, label=f'AUC = {auc(fpr, tpr):.2f}')
+plt.plot([0, 1], [0, 1], linestyle='--')
+plt.title('ROC Curve')
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.legend()
+plt.show()
